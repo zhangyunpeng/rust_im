@@ -1,0 +1,51 @@
+syntax = "proto3";
+package connect;
+
+// 生成rust代码命名空间
+// option rust_package = "pb";
+// option rust_crate_path = "crate::pb";
+
+// 消息指令码
+enum Op {
+  OP_UNKNOWN = 0;
+  OP_HANDSHAKE = 1;    // 握手鉴权
+  OP_HEARTBEAT = 2;    // 心跳
+  OP_SEND_MSG = 3;     // 客户端上行发消息
+  OP_PUSH_MSG = 4;     // 服务端推送消息
+  OP_KICK = 5;         // 踢下线通知
+}
+
+// 外层数据包（goim标准4字节长度头包裹此结构）
+message Packet {
+  uint32 len = 1;      // 包体长度（序列化后body字节数）
+  uint32 op = 2;       // 指令枚举Op
+  bytes body = 3;      // 业务子消息二进制
+}
+
+// 握手请求
+message HandshakeReq {
+  int64 uid = 1;
+  string token = 2;
+  string device_id = 3;
+}
+
+// 握手响应
+message HandshakeResp {
+  int32 code = 1;
+  string msg = 2;
+  int64 heartbeat_ms = 3; // 心跳间隔毫秒
+}
+
+// 聊天消息载体
+message Message {
+  int64 from_uid = 1;
+  repeated int64 to_uid_list = 2;
+  string content = 3;
+  int64 room_id = 4;
+}
+
+// 踢人消息
+message KickNotify {
+  int64 uid = 1;
+  string reason = 2;
+}
