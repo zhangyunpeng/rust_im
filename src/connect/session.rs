@@ -1,4 +1,4 @@
-use crate::connect::codec::{Codec};
+use crate::connect::codec::Codec;
 use crate::connect::state::{CometState, ConnSender};
 use crate::pb::{HandshakeReq, HandshakeResp, Op, Packet};
 use futures::{SinkExt, StreamExt};

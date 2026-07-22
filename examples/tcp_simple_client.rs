@@ -5,7 +5,7 @@ use tokio::{spawn, sync::mpsc, time::sleep};
 use tokio_util::codec::Framed;
 
 use rust_im::connect::codec::Codec;
-use rust_im::pb::{Op, Packet, HandshakeReq};
+use rust_im::pb::{HandshakeReq, Op, Packet};
 
 #[tokio::main]
 async fn main() -> Result<()> {

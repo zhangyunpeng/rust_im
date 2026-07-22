@@ -1,8 +1,8 @@
 use axum::{Router, serve};
 use rdkafka::producer::FutureProducer;
-use tracing_subscriber::{EnvFilter, fmt};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpSocket};
+use tracing_subscriber::{EnvFilter, fmt};
 
 use rust_im::connect::push_consumer::start_push_consumer;
 use rust_im::connect::session::handle_tcp_stream;
@@ -36,7 +36,8 @@ async fn main() -> anyhow::Result<()> {
     let state_tcp = comet_state.clone();
     tokio::spawn(async move {
         let addr: SocketAddr = "0.0.0.0:8090".parse().expect("addr parse fail");
-        let listener = create_reuse_listener(addr).await
+        let listener = create_reuse_listener(addr)
+            .await
             .expect("tcp bind 0.0.0.0:8090 failed");
         loop {
             match listener.accept().await {
