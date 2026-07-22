@@ -3,6 +3,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use prost::{DecodeError, Message};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
+
 #[derive(Error, Debug)]
 pub enum CodecError {
     #[error("io error: {0}")]
@@ -22,7 +23,8 @@ impl Decoder for Codec {
         if buf.len() < 4 {
             return Ok(None);
         }
-        let body_len = u32::from_be_bytes(buf[0..4].try_into().unwrap()) as usize;
+        // 【修改】小端读取长度
+        let body_len = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as usize;
         let total_len = body_len + 4;
         if buf.len() < total_len {
             return Ok(None);
@@ -38,6 +40,7 @@ impl Encoder<Packet> for Codec {
     type Error = CodecError;
     fn encode(&mut self, item: Packet, buf: &mut BytesMut) -> Result<(), Self::Error> {
         let raw = item.encode_to_vec();
+        // 小端写入，与decode配对
         buf.put_u32_le(raw.len() as u32);
         buf.put_slice(&raw);
         Ok(())

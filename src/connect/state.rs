@@ -46,6 +46,7 @@ impl CometState {
     /// 批量推送消息给目标用户
     pub async fn push_users(&self, uids: &[i64], pkt: Packet) -> anyhow::Result<()> {
         for uid in uids {
+            tracing::debug!("开始查询在线用户 uid={uid}");
             if let Some(channels) = self.online.get(uid) {
                 for channel in channels.iter() {
                     let _ = channel.send(pkt.clone());

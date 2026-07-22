@@ -8,7 +8,7 @@ pub async fn start_push_consumer(state: CometState) -> anyhow::Result<()> {
     let consumer: StreamConsumer = ClientConfig::new()
         .set("bootstrap.servers", "127.0.0.1:9092")
         .set("group.id", "rust-comet-push")
-        .set("auto.offset.reset", "latest")
+        .set("auto.offset.reset", "earliest")
         .create()?;
     consumer.subscribe(&["im-push"])?;
     tracing::info!("push kafka consumer running");

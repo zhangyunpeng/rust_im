@@ -1,4 +1,4 @@
-use crate::connect::codec::{Codec, CodecError};
+use crate::connect::codec::{Codec};
 use crate::connect::state::{CometState, ConnSender};
 use crate::pb::{HandshakeReq, HandshakeResp, Op, Packet};
 use futures::{SinkExt, StreamExt};
@@ -11,53 +11,60 @@ pub async fn handle_tcp_stream(
     stream: tokio::net::TcpStream,
     state: CometState,
 ) -> anyhow::Result<()> {
-    let framed = Framed::new(stream, Codec {});
-    let (mut writer, mut reader) = framed.split();
+    let mut framed = Framed::new(stream, Codec {});
     let (tx, mut rx): (ConnSender, UnboundedReceiver<Packet>) = mpsc::unbounded_channel();
 
     let mut uid: Option<i64> = None;
     let mut last_hb = Instant::now();
     let hb_timeout = state.heartbeat_timeout();
 
-    // 下行写任务
-    let write_task = tokio::spawn(async move {
-        while let Some(pkt) = rx.recv().await {
-            if writer.send(pkt).await.is_err() {
-                break;
-            }
-        }
-    });
-
     loop {
         tokio::select! {
-            res = reader.next() => {
+            // 上行读取
+            res = framed.next() => {
                 match res {
                     Some(Ok(pkt)) => {
                         last_hb = Instant::now();
+                        tracing::debug!("收到客户端上行数据包");
                         process_in_packet(pkt, &state, &tx, &mut uid).await?;
                     }
-                    Some(Err(CodecError::Io(_))) | None => break,
                     Some(Err(e)) => {
-                        tracing::warn!("tcp decode error:{}", e);
+                        tracing::error!("decode error:{}", e);
                         break;
-                    },
+                    }
+                    None => {
+                        tracing::info!("tcp stream closed");
+                        break;
+                    }
                 }
-            },
-            _ = tokio::time::sleep(hb_timeout) => {
+            }
+            // 下行发送队列
+            out_pkt = rx.recv() => {
+                if let Some(pkt) = out_pkt {
+                    if framed.send(pkt).await.is_err() {
+                        tracing::warn!("下行发送失败，关闭连接");
+                        break;
+                    }
+                } else {
+                    tracing::info!("下行通道关闭");
+                    break;
+                }
+            }
+            // 心跳检测
+            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
                 if Instant::now() - last_hb > hb_timeout {
-                    tracing::info!("heartbeat timeout, close connection");
+                    tracing::info!("⚠️心跳超时，关闭tcp连接");
                     break;
                 }
             }
         }
     }
 
-    // 连接销毁清理
+    // 清理
     if let Some(u) = uid {
         state.remove_conn(u, &tx);
+        tracing::info!("用户{}下线清理", u);
     }
-    drop(tx);
-    let _ = write_task.await;
     Ok(())
 }
 

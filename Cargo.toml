@@ -19,6 +19,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 futures = { version = "0.3.33", features = ["std"] }
+futures-util = "0.3.33"
+hex = "0.4.3"
 
 [build-dependencies]
 prost-build = "0.12"
