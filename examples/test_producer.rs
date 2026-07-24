@@ -13,12 +13,12 @@ async fn main() -> Result<()> {
         .set("bootstrap.servers", "127.0.0.1:9092")
         .create()?;
     loop {
-        let timeStr = now_ts_ms().to_string();
+        let timeStr = now_ts_sec().to_string();
         // 推送消息：修改to_uid_list为你客户端握手登录的uid
         let push_msg = ImMessage {
             from_uid: 10001,
             to_uid_list: vec![10002],
-            content: format!("消息：{:?}", timeStr),
+            content: format!("消息：你好！！！ 当时间戳: {:?}(秒)", timeStr),
             room_id: 0,
         };
         let msg_clone = push_msg.clone();
@@ -47,4 +47,11 @@ pub fn now_ts_ms() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis()
+}
+
+pub fn now_ts_sec() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }

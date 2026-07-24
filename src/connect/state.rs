@@ -1,4 +1,4 @@
-use crate::pb::Packet;
+use crate::pb::{Packet, Message as ImMessage};
 use dashmap::DashMap;
 use prost::Message;
 use rdkafka::producer::{FutureProducer, FutureRecord};
@@ -46,7 +46,6 @@ impl CometState {
     /// 批量推送消息给目标用户
     pub async fn push_users(&self, uids: &[i64], pkt: Packet) -> anyhow::Result<()> {
         for uid in uids {
-            tracing::debug!("开始查询在线用户 uid={uid}");
             if let Some(channels) = self.online.get(uid) {
                 for channel in channels.iter() {
                     let _ = channel.send(pkt.clone());
@@ -57,9 +56,9 @@ impl CometState {
     }
 
     /// 上行消息投递 job kafka
-    pub async fn send_job_kafka(&self, pkt: Packet) -> anyhow::Result<()> {
-        let data = pkt.encode_to_vec();
-        let record = FutureRecord::to("im-job").payload(&data).key(b"msg");
+    pub async fn send_job_kafka(&self, msg: ImMessage) -> anyhow::Result<()> {
+        let data = msg.encode_to_vec();
+        let record = FutureRecord::to("im-push").payload(&data).key(b"msg");
         self.kafka_producer
             .send(record, None)
             .await

@@ -115,7 +115,8 @@ pub async fn process_in_packet(
             let _ = tx.send(resp_pkt);
         }
         Ok(Op::SendMsg) => {
-            state.send_job_kafka(pkt).await?;
+            let msg = Message::decode(pkt.body.as_slice())?;
+            state.send_job_kafka(msg).await?;
         }
         Ok(_) => {}
         Err(_) => {}

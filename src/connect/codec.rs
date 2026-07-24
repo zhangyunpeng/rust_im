@@ -49,9 +49,9 @@ impl Encoder<Packet> for Codec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pb::{Packet, Op};
+    use crate::pb::{Op, Packet};
     use bytes::BytesMut;
-    use tokio_util::codec::{Encoder, Decoder};
+    use tokio_util::codec::{Decoder, Encoder};
 
     fn create_test_packet(len: u32, op: Op) -> Packet {
         Packet {
@@ -87,7 +87,7 @@ mod tests {
         codec.encode(pkt.clone(), &mut buf).unwrap();
 
         let full_len = buf.len();
-        let mut partial_buf = buf.split_to(full_len/2);
+        let mut partial_buf = buf.split_to(full_len / 2);
         let decoded_pkt = codec.decode(&mut partial_buf).unwrap();
         assert!(decoded_pkt.is_none());
 

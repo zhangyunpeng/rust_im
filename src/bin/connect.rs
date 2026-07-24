@@ -1,7 +1,7 @@
 use axum::{Router, serve};
 use rdkafka::producer::FutureProducer;
 use std::net::SocketAddr;
-use tokio::net::{TcpListener, TcpSocket};
+use tokio::net::{TcpListener};
 use tracing_subscriber::{EnvFilter, fmt};
 
 use rust_im::connect::push_consumer::start_push_consumer;
@@ -13,7 +13,7 @@ use rust_im::connect::ws::build_ws_router;
 async fn main() -> anyhow::Result<()> {
     // 日志初始化
     // tracing_subscriber::fmt::init();
-    fmt().with_env_filter(EnvFilter::new("info")).init();
+    fmt().with_env_filter(EnvFilter::new("debug")).init();
     tracing::info!("rust-im im-comet 启动中...");
 
     // Kafka Producer 配置
@@ -36,13 +36,12 @@ async fn main() -> anyhow::Result<()> {
     let state_tcp = comet_state.clone();
     tokio::spawn(async move {
         let addr: SocketAddr = "0.0.0.0:8090".parse().expect("addr parse fail");
-        let listener = create_reuse_listener(addr)
+        let listener = TcpListener::bind(addr)
             .await
             .expect("tcp bind 0.0.0.0:8090 failed");
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
-                    tracing::info!("新TCP连接: {}", addr);
                     let s = state_tcp.clone();
                     tokio::spawn(async move {
                         if let Err(e) = handle_tcp_stream(stream, s).await {
@@ -65,17 +64,4 @@ async fn main() -> anyhow::Result<()> {
     serve(ws_listener, app.into_make_service()).await?;
 
     Ok(())
-}
-
-/// 创建支持端口复用的TCP监听器
-pub async fn create_reuse_listener(addr: SocketAddr) -> anyhow::Result<TcpListener> {
-    let socket = TcpSocket::new_v4()?;
-    // 开启 SO_REUSEADDR：允许TIME_WAIT端口立刻重新绑定
-    socket.set_reuseaddr(true)?;
-    #[cfg(target_family = "unix")]
-    socket.set_reuseport(true)?;
-
-    socket.bind(addr)?;
-    let listener = socket.listen(1024)?;
-    Ok(listener)
 }
