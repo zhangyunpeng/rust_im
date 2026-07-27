@@ -23,8 +23,8 @@ pub async fn start_push_consumer(state: CometState) -> anyhow::Result<()> {
                 // 打印解码错误 + kafka原始payload十六进制
                 println!("decode err: {:?}", e);
                 println!("kafka原始payload hex: {:02x?}", payload);
-                continue
-            },
+                continue;
+            }
         };
         let pkt = Packet {
             op: Op::PushMsg as u32,

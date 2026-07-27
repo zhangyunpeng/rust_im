@@ -1,26 +1,30 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::Result;
+use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use prost::Message;
+use rust_im::connect::codec::Codec;
+use rust_im::pb::Message as ImMessage;
+use rust_im::pb::{HandshakeReq, Op, Packet};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::{spawn, sync::mpsc, time::sleep};
 use tokio_util::codec::Framed;
-use rust_im::pb::Message as ImMessage;
-use rust_im::connect::codec::Codec;
-use rust_im::pb::{HandshakeReq, Op, Packet};
-use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct ClientArgs {
     #[arg(short = 'u', long = "login uid", default_value = "0")]
     login_uid: i64,
-    #[arg(short = 'f', long = "friend uids", value_delimiter = ',',  default_value = "0")]
+    #[arg(
+        short = 'f',
+        long = "friend uids",
+        value_delimiter = ',',
+        default_value = "0"
+    )]
     friend_uids: Vec<i64>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
     // 解析启动参数
     let args = ClientArgs::parse();
     println!("服务启动参数配置：{:#?}", args);
@@ -45,38 +49,38 @@ async fn main() -> Result<()> {
 
         loop {
             tokio::select! {
-            // 2. 使用 &mut 引用，防止 select! 在分支触发时 drop 掉定时器状态
-            _ = hb_interval.tick() => {
-                let hb_pkt = Packet {
-                    op: Op::Heartbeat as u32,
-                    body: vec![],
-                    len: 0,
-                };
-                if tx_hb.send(hb_pkt).is_err() {
-                    println!("💔心跳通道关闭");
-                    break;
+                // 2. 使用 &mut 引用，防止 select! 在分支触发时 drop 掉定时器状态
+                _ = hb_interval.tick() => {
+                    let hb_pkt = Packet {
+                        op: Op::Heartbeat as u32,
+                        body: vec![],
+                        len: 0,
+                    };
+                    if tx_hb.send(hb_pkt).is_err() {
+                        println!("💔心跳通道关闭");
+                        break;
+                    }
+                    println!("💓发送心跳包");
+                },
+                _ = msg_interval.tick() => {
+                    let msg = ImMessage {
+                        from_uid: args.login_uid,
+                        to_uid_list: args.friend_uids.clone(),
+                        content: format!("{} say: hello, {}", args.login_uid, now_ts_sec()),
+                        room_id: 0,
+                    };
+                    let pkt = Packet {
+                        len: 0,
+                        op: Op::SendMsg as u32,
+                        body: msg.encode_to_vec(),
+                    };
+                    if tx_hb.send(pkt).is_err() {
+                        println!("发送消息失败");
+                        break;
+                    }
+                    println!("发送消息成功");
                 }
-                println!("💓发送心跳包");
-            },
-            _ = msg_interval.tick() => {
-                let msg = ImMessage {
-                    from_uid: 10001,
-                    to_uid_list: args.friend_uids.clone(),
-                    content: format!("你好10002, {}", now_ts_sec()),
-                    room_id: 0,
-                };
-                let pkt = Packet {
-                    len: 0,
-                    op: Op::SendMsg as u32,
-                    body: msg.encode_to_vec(),
-                };
-                if tx_hb.send(pkt).is_err() {
-                    println!("发送消息失败");
-                    break;
-                }
-                println!("发送消息成功");
             }
-        }
         }
     });
 

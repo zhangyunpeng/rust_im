@@ -1,4 +1,7 @@
-use crate::pb::{Packet, Message as ImMessage};
+use crate::config::AppConfig;
+use crate::connect::room::RoomState;
+use crate::pb::{Message as ImMessage, Packet};
+use crate::registry::etcd::RegistryEtcdClient;
 use dashmap::DashMap;
 use prost::Message;
 use rdkafka::producer::{FutureProducer, FutureRecord};
@@ -10,16 +13,29 @@ pub type ConnSender = UnboundedSender<Packet>;
 
 #[derive(Clone)]
 pub struct CometState {
+    pub config: Arc<AppConfig>,
+    pub registry: Arc<RegistryEtcdClient>,
     // uid => 多设备
     online: Arc<DashMap<i64, Vec<ConnSender>>>,
+    room: RoomState,
     kafka_producer: Arc<FutureProducer>,
     heartbeat_ms: u64,
 }
 
 impl CometState {
-    pub fn new(producer: FutureProducer, heartbeat_ms: u64) -> Self {
+    pub fn new(
+        producer: FutureProducer,
+        heartbeat_ms: u64,
+        cfg: AppConfig,
+        registry_client: RegistryEtcdClient,
+    ) -> Self {
+        let cfg_arc = Arc::new(cfg);
+        let room = RoomState::new(cfg_arc.clone());
         CometState {
+            config: cfg_arc,
+            registry: Arc::new(registry_client),
             online: Arc::new(DashMap::new()),
+            room,
             kafka_producer: Arc::new(producer),
             heartbeat_ms,
         }
@@ -46,11 +62,19 @@ impl CometState {
     /// 批量推送消息给目标用户
     pub async fn push_users(&self, uids: &[i64], pkt: Packet) -> anyhow::Result<()> {
         for uid in uids {
+            // 1. 本地推送
             if let Some(channels) = self.online.get(uid) {
                 for channel in channels.iter() {
                     let _ = channel.send(pkt.clone());
                 }
             }
+
+            // 2. 本地无连接，查询所有在线网关， RPC转发推送
+            // let all_nodes = self.registry.list_all_nodes().await?;
+            // for _node_json in all_nodes {
+            //     // 解析节点grpc地址，发起rpc推送
+            //     // self.rpc_client.remote_push(node_json, pkt.clone()).await?;
+            // }
         }
         Ok(())
     }
@@ -68,5 +92,10 @@ impl CometState {
 
     pub fn heartbeat_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.heartbeat_ms * 2)
+    }
+
+    pub async fn push_room(&self, room_id: i64, pkt: Packet) -> anyhow::Result<()> {
+        let room_uids = self.room.room_uids(room_id);
+        self.push_users(&room_uids, pkt).await
     }
 }

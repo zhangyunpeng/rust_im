@@ -1,0 +1,29 @@
+[comet]
+node_id = "comet-node-01"
+listen_addr = "0.0.0.0:8080"
+grpc_addr = "0.0.0.0:50051"
+heartbeat_ms = 30000
+enable_distributed = true
+
+[redis]
+addr = "redis://127.0.0.1:6379"
+password = "douyaer"
+db = 0
+pool_size = 20
+online_ttl_sec = 30
+
+[kafka]
+brokers = "127.0.0.1:9092"
+up_topic = "im-push"
+push_task_topic = "im-push"
+queue_buffering_max_messages = 10000
+
+[registry]
+endpoints = "127.0.0.1:12379"
+heartbeat_interval_ms = 10000
+service_prefix = "im/comet/"
+
+[room_cache]
+max_local_room = 10000
+sync_redis_interval_sec = 30
+auto_clear_empty_room = true
