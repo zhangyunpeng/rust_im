@@ -38,9 +38,9 @@ async fn main() -> anyhow::Result<()> {
 
     let arc_app_cfg = Arc::new(app_cfg);
     // 6. 缓存初始化
-    let cache_instance = cache::NewCache(CacheType::Redis, arc_app_cfg.clone())?;
-
-    // 6. 构建全局Comet状态，心跳间隔30000ms
+    let cache_instance = cache::new_cache(CacheType::Redis, arc_app_cfg.clone())?;
+    
+    // 7. 构建全局Comet状态，心跳间隔30000ms
     let comet_state = CometState::new(
         kafka_producer,
         30000,
@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
         cache_instance,
     );
 
-    // 7. 优雅停机信号监听，主动注销etcd节点
+    // 8. 优雅停机信号监听，主动注销etcd节点
     let state_clone = comet_state.clone();
     tokio::spawn(async move {
         let mut sig = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())

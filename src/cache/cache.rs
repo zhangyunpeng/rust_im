@@ -1,6 +1,6 @@
 use crate::cache::cache_redis::CacheRedis;
 use crate::config::AppConfig;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use futures::future::BoxFuture;
 use redis::Client as RedisClient;
 use std::sync::Arc;
@@ -22,7 +22,10 @@ pub enum CacheType {
     Redis,
 }
 
-pub fn NewCache(typ: CacheType, app_config: Arc<AppConfig>) -> anyhow::Result<Box<dyn CacheTrait>> {
+pub fn new_cache(
+    typ: CacheType,
+    app_config: Arc<AppConfig>,
+) -> anyhow::Result<Box<dyn CacheTrait>> {
     let instance: Box<dyn CacheTrait> = match typ {
         CacheType::Redis => {
             let cl = RedisClient::open(app_config.redis.addr.as_str())?;

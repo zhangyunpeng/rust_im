@@ -63,10 +63,7 @@ impl RegistryEtcdClient {
     fn build_node_info(&self) -> String {
         format!(
             r#"{{"node_id":"{}","listen_addr":"{}","grpc_addr":"{}"}}"#,
-            self.node_id,
-            // todo!
-            "".to_string(),
-            "".to_string()
+            self.node_id, "", "",
         )
     }
 

@@ -14,6 +14,14 @@ pub struct AppConfig {
     pub registry: RegistryConfig,
     /// 分布式房间本地缓存策略
     pub room_cache: RoomCacheConfig,
+    /// mysql
+    pub mysql: MysqlConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct MysqlConfig {
+    pub dsn: String,
+    pub max_connections: u32,
 }
 
 /// Comet网关基础配置

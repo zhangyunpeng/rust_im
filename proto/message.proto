@@ -1,10 +1,6 @@
 syntax = "proto3";
 package connect;
 
-// 生成rust代码命名空间
-// option rust_package = "pb";
-// option rust_crate_path = "crate::pb";
-
 // 消息指令码
 enum Op {
   OP_UNKNOWN = 0;

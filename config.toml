@@ -27,3 +27,7 @@ service_prefix = "im/comet/"
 max_local_room = 10000
 sync_redis_interval_sec = 30
 auto_clear_empty_room = true
+
+[mysql]
+dsn = "mysql://root:root@127.0.0.1:3306/im"
+max_connections = 100

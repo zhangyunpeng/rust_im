@@ -1,0 +1,19 @@
+syntax = "proto3";
+package comet;
+
+// 远程推送消息请求
+message RemotePushReq {
+  int64 uid = 1;
+  bytes packet_bin = 2;
+}
+// 推送返回
+message RemotePushResp {
+  bool success = 1;
+  string msg = 2;
+}
+
+// 网关间RPC推送服务
+service CometPushService {
+  // 其他节点调用此接口推送消息给本地在线用户
+  rpc remote_push(RemotePushReq) returns (RemotePushResp);
+}

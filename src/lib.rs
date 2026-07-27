@@ -1,5 +1,10 @@
 pub mod cache;
 pub mod config;
 pub mod connect;
+pub mod db;
+pub mod model;
 pub mod pb;
 pub mod registry;
+pub mod rpc;
+pub mod service;
+pub mod route;

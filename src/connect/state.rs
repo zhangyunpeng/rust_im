@@ -19,7 +19,7 @@ pub struct CometState {
     pub registry: Arc<RegistryEtcdClient>,
     pub cache: Arc<Box<dyn CacheTrait>>,
     // uid => 多设备
-    online: Arc<DashMap<i64, Vec<ConnSender>>>,
+    pub online: Arc<DashMap<i64, Vec<ConnSender>>>,
     room: RoomState,
     kafka_producer: Arc<FutureProducer>,
     heartbeat_ms: u64,

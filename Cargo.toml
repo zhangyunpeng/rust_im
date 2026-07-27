@@ -7,7 +7,7 @@ edition = "2024"
 prost = "0.14.4"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
 tokio-util = { version = "0.7.19", features = ["codec"] }
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.7.9", features = ["ws"] }
 tokio-tungstenite = "0.18"
 tungstenite = "0.19"
 dashmap = "5.5"
@@ -25,7 +25,16 @@ redis = { version = "1.4.1", features = ["tokio-comp", "json", "aio"] }
 etcd-client = "0.12.4"
 tokio-stream = "0.1.19"
 serde_json = "1.0.151"
+tonic = "0.14.6"
+tonic-prost = "0.14.6"
+prost-types = "0.14.4"
+sqlx = { version = "0.7.4", features = ["mysql", "runtime-tokio", "macros", "json", "chrono"] }
+bcrypt = "0.19.2"
+jsonwebtoken = { version = "11.0", features = ["rust_crypto"] }
+chrono = { version = "0.4.45", features = ["serde"] }
+once_cell = "1.21.4"
 
 
 [build-dependencies]
-prost-build = "0.12.6"
+prost-build = "0.14.4"
+tonic-prost-build = "0.14.6"
