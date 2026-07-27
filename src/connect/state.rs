@@ -1,7 +1,9 @@
+use crate::cache::cache::CacheTrait;
 use crate::config::AppConfig;
 use crate::connect::room::RoomState;
 use crate::pb::{Message as ImMessage, Packet};
 use crate::registry::etcd::RegistryEtcdClient;
+use anyhow::Result;
 use dashmap::DashMap;
 use prost::Message;
 use rdkafka::producer::{FutureProducer, FutureRecord};
@@ -15,6 +17,7 @@ pub type ConnSender = UnboundedSender<Packet>;
 pub struct CometState {
     pub config: Arc<AppConfig>,
     pub registry: Arc<RegistryEtcdClient>,
+    pub cache: Arc<Box<dyn CacheTrait>>,
     // uid => 多设备
     online: Arc<DashMap<i64, Vec<ConnSender>>>,
     room: RoomState,
@@ -26,14 +29,15 @@ impl CometState {
     pub fn new(
         producer: FutureProducer,
         heartbeat_ms: u64,
-        cfg: AppConfig,
+        cfg: Arc<AppConfig>,
         registry_client: RegistryEtcdClient,
+        cache: Box<dyn CacheTrait>,
     ) -> Self {
-        let cfg_arc = Arc::new(cfg);
-        let room = RoomState::new(cfg_arc.clone());
+        let room = RoomState::new(cfg.clone());
         CometState {
-            config: cfg_arc,
+            config: cfg,
             registry: Arc::new(registry_client),
+            cache: Arc::new(cache),
             online: Arc::new(DashMap::new()),
             room,
             kafka_producer: Arc::new(producer),
@@ -42,21 +46,31 @@ impl CometState {
     }
 
     /// 注册新链接
-    pub fn add_conn(&self, uid: i64, tx: ConnSender) {
+    pub async fn add_conn(&self, uid: i64, tx: ConnSender) -> Result<()> {
         self.online.entry(uid).or_default().push(tx);
+        self.cache
+            .set_user_route(
+                uid,
+                &self.config.comet.node_id,
+                &self.config.comet.grpc_addr,
+            )
+            .await?;
+        Ok(())
     }
 
     /// 移除单条链接
-    pub fn remove_conn(&self, uid: i64, tx: &ConnSender) {
+    pub async fn remove_conn(&self, uid: i64, tx: &ConnSender) -> Result<()> {
         let mut entry = match self.online.get_mut(&uid) {
             Some(v) => v,
-            None => return,
+            None => return Ok(()),
         };
 
         entry.retain(|channel| channel.same_channel(tx));
         if entry.is_empty() {
             self.online.remove(&uid);
         }
+        self.cache.del_user_route(uid).await?;
+        Ok(())
     }
 
     /// 批量推送消息给目标用户

@@ -62,7 +62,7 @@ pub async fn handle_tcp_stream(
 
     // 清理
     if let Some(u) = uid {
-        state.remove_conn(u, &tx);
+        state.remove_conn(u, &tx).await?;
         tracing::info!("用户{}下线清理", u);
     }
     Ok(())
@@ -86,7 +86,7 @@ pub async fn process_in_packet(
             let auth_ok = verify_token(req.uid, &req.token).await;
             let resp = if auth_ok {
                 *uid = Some(req.uid);
-                state.add_conn(req.uid, tx.clone());
+                state.add_conn(req.uid, tx.clone()).await?;
                 HandshakeResp {
                     code: 0,
                     msg: "ok".to_string(),

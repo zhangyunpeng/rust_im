@@ -6,7 +6,7 @@ heartbeat_ms = 30000
 enable_distributed = true
 
 [redis]
-addr = "redis://127.0.0.1:6379"
+addr = "redis://:douyaer@127.0.0.1:6379"
 password = "douyaer"
 db = 0
 pool_size = 20

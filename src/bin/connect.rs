@@ -1,5 +1,7 @@
 use axum::{Router, serve};
 use rdkafka::producer::FutureProducer;
+use rust_im::cache::cache;
+use rust_im::cache::cache::CacheType;
 use rust_im::config::AppConfig;
 use rust_im::connect::push_consumer::start_push_consumer;
 use rust_im::connect::session::handle_tcp_stream;
@@ -7,6 +9,7 @@ use rust_im::connect::state::CometState;
 use rust_im::connect::ws::build_ws_router;
 use rust_im::registry::etcd::RegistryEtcdClient;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt};
 
@@ -33,8 +36,18 @@ async fn main() -> anyhow::Result<()> {
         println!("success register comet node to etcd");
     }
 
+    let arc_app_cfg = Arc::new(app_cfg);
+    // 6. 缓存初始化
+    let cache_instance = cache::NewCache(CacheType::Redis, arc_app_cfg.clone())?;
+
     // 6. 构建全局Comet状态，心跳间隔30000ms
-    let comet_state = CometState::new(kafka_producer, 30000, app_cfg, registry_client);
+    let comet_state = CometState::new(
+        kafka_producer,
+        30000,
+        arc_app_cfg,
+        registry_client,
+        cache_instance,
+    );
 
     // 7. 优雅停机信号监听，主动注销etcd节点
     let state_clone = comet_state.clone();

@@ -65,7 +65,7 @@ async fn handle_ws_conn(ws: WebSocket, state: CometState) -> anyhow::Result<()> 
     }
 
     if let Some(u) = uid {
-        state.remove_conn(u, &tx);
+        state.remove_conn(u, &tx).await?;
     }
     drop(tx);
     let _ = write_task.await;
