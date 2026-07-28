@@ -5,6 +5,6 @@ pub mod db;
 pub mod model;
 pub mod pb;
 pub mod registry;
+pub mod route;
 pub mod rpc;
 pub mod service;
-pub mod route;

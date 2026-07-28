@@ -45,11 +45,11 @@ pub async fn user_login(pool: &MySqlPool, login_req: &LoginReq) -> Result<LoginR
     })
 }
 
-pub async fn register_user(
-    pool: &MySqlPool,
-    req: &RegisterReq,
-) -> Result<RegisterRsp> {
-    if get_user_by_name(pool, req.username.as_str()).await?.is_some() {
+pub async fn register_user(pool: &MySqlPool, req: &RegisterReq) -> Result<RegisterRsp> {
+    if get_user_by_name(pool, req.username.as_str())
+        .await?
+        .is_some()
+    {
         return Err(anyhow::anyhow!("User already exists"));
     }
 
@@ -62,7 +62,7 @@ pub async fn register_user(
             .execute(pool)
             .await?;
 
-    Ok(RegisterRsp{
+    Ok(RegisterRsp {
         id: result.last_insert_id() as i64,
     })
 }

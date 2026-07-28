@@ -1,15 +1,17 @@
 use anyhow::Result;
 use axum::Router;
-use tracing_subscriber::EnvFilter;
 use rust_im::config::AppConfig;
 use rust_im::db::mysql::init_mysql_pool;
+use tracing_subscriber::EnvFilter;
 // use rust_im::registry::etcd::RegistryEtcdClient;
 use rust_im::route::user as userRoute;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // 1 日志
-    tracing_subscriber::fmt().with_env_filter(EnvFilter::new("info")).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::new("info"))
+        .init();
     tracing::info!("rust im API starting...");
 
     // 2. 加载配置

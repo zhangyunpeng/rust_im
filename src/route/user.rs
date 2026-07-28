@@ -1,9 +1,9 @@
-use axum::{extract::State, http::StatusCode, response::Json, routing::post, Router};
+use axum::{Router, extract::State, http::StatusCode, response::Json, routing::post};
 use sqlx::MySqlPool;
 
+use crate::db::mysql::get_mysql_pool;
 use crate::model::user::{LoginReq, RegisterReq};
 use crate::service::user_services::{register_user, user_login};
-use crate::db::mysql::get_mysql_pool;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -15,7 +15,6 @@ impl AppState {
         AppState { mysql_pool }
     }
 }
-
 
 pub fn user_routes() -> Router {
     let rs = Router::new()
