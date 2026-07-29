@@ -1,7 +1,7 @@
 [comet]
 node_id = "comet-node-01"
 listen_addr = "0.0.0.0:8080"
-grpc_addr = "0.0.0.0:50051"
+grpc_addr = "127.0.0.1:8093"
 heartbeat_ms = 30000
 enable_distributed = true
 
@@ -29,5 +29,5 @@ sync_redis_interval_sec = 30
 auto_clear_empty_room = true
 
 [mysql]
-dsn = "mysql://root:root@127.0.0.1:3306/im"
+dsn = "mysql://root:root@127.0.0.1:3306/ im"
 max_connections = 100

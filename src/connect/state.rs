@@ -1,8 +1,10 @@
 use crate::cache::cache::CacheTrait;
+use crate::cache::cache::RouteInfo;
 use crate::config::AppConfig;
 use crate::connect::room::RoomState;
 use crate::pb::{Message as ImMessage, Packet};
-use crate::registry::etcd::RegistryEtcdClient;
+use crate::registry::etcd::{NodeInfo, RegistryEtcdClient};
+use crate::rpc::client::RpcClientPool;
 use anyhow::Result;
 use dashmap::DashMap;
 use prost::Message;
@@ -23,6 +25,7 @@ pub struct CometState {
     room: RoomState,
     kafka_producer: Arc<FutureProducer>,
     heartbeat_ms: u64,
+    rpc_client: Arc<RpcClientPool>,
 }
 
 impl CometState {
@@ -32,6 +35,7 @@ impl CometState {
         cfg: Arc<AppConfig>,
         registry_client: RegistryEtcdClient,
         cache: Box<dyn CacheTrait>,
+        rpc_client: Arc<RpcClientPool>,
     ) -> Self {
         let room = RoomState::new(cfg.clone());
         CometState {
@@ -42,6 +46,7 @@ impl CometState {
             room,
             kafka_producer: Arc::new(producer),
             heartbeat_ms,
+            rpc_client,
         }
     }
 
@@ -74,30 +79,39 @@ impl CometState {
     }
 
     /// 批量推送消息给目标用户
-    pub async fn push_users(&self, uids: &[i64], pkt: Packet) -> anyhow::Result<()> {
+    pub async fn push_users(&self, uids: &[i64], pkt: Packet) -> Result<()> {
         for uid in uids {
-            // 1. 本地推送
             if let Some(channels) = self.online.get(uid) {
                 for channel in channels.iter() {
                     let _ = channel.send(pkt.clone());
                 }
             }
 
-            // 2. 本地无连接，查询所有在线网关， RPC转发推送
-            // let all_nodes = self.registry.list_all_nodes().await?;
-            // for _node_json in all_nodes {
-            //     // 解析节点grpc地址，发起rpc推送
-            //     // self.rpc_client.remote_push(node_json, pkt.clone()).await?;
-            // }
+            let route = self.cache.get_user_route(*uid).await?;
+            let route_info = serde_json::from_str(route.to_string().as_str());
+            let route_info: RouteInfo = route_info?;
+            let all_nodes = self.registry.list_all_nodes().await?;
+            tracing::info!("all nodes: {:?}", all_nodes.clone());
+            for node_json in all_nodes {
+                let node_data = NodeInfo(node_json.as_str())?;
+                tracing::info!("node_data: {:?}", node_data);
+                tracing::info!("route: {:?}", route_info);
+                if route_info.node_id.eq(node_data.node_id.as_str()) {
+                    let cl = self
+                        .rpc_client
+                        .remote_push(node_data.grpc_addr.as_str(), *uid, pkt.clone())
+                        .await?;
+                }
+            }
         }
         Ok(())
     }
 
     /// 上行消息投递 job kafka
-    pub async fn send_job_kafka(&self, msg: ImMessage) -> anyhow::Result<()> {
+    pub async fn send_job_kafka(&self, msg: ImMessage) -> Result<()> {
         let data = msg.encode_to_vec();
         let record = FutureRecord::to("im-push").payload(&data).key(b"msg");
-        self.kafka_producer
+         self.kafka_producer
             .send(record, None)
             .await
             .map_err(|(e, _)| e)?;

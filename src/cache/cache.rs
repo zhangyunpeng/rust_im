@@ -3,6 +3,7 @@ use crate::config::AppConfig;
 use anyhow::Result;
 use futures::future::BoxFuture;
 use redis::Client as RedisClient;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub trait CacheTrait: Send + Sync + 'static {
@@ -38,4 +39,11 @@ pub fn new_cache(
     };
 
     Ok(instance)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RouteInfo {
+    pub node_id: String,
+    pub listen_addr: String,
+    pub grpc_addr: String,
 }

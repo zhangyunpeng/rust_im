@@ -1,12 +1,10 @@
 use anyhow::Result;
 use bcrypt::{DEFAULT_COST, hash, verify};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sqlx::{self, MySqlPool};
 
+use super::{JWT_EXPIRE_SECONDS, JWT_SECRET, TokenClaims};
 use crate::model::user::{LoginReq, LoginResp, RegisterReq, RegisterRsp, User};
-
-const JWT_SECRET: &[u8] = b"rust_im_2026";
-const JWT_EXPIRE_SECONDS: i64 = 7 * 24 * 3600;
 
 pub async fn get_user_by_name(pool: &MySqlPool, name: &str) -> Result<Option<User>> {
     let user = sqlx::query_as::<_, User>("SELECT id, username, password, nickname, create_at, update_at FROM `user` WHERE username = ?").bind(name).fetch_optional(pool).await?;
@@ -28,10 +26,10 @@ pub async fn user_login(pool: &MySqlPool, login_req: &LoginReq) -> Result<LoginR
     }
 
     let now = chrono::Utc::now().timestamp();
-    let claims = serde_json::json!({
-        "uid": user.id,
-        "exp": now + JWT_EXPIRE_SECONDS,
-    });
+    let claims = TokenClaims {
+        uid: user.id,
+        exp: now + JWT_EXPIRE_SECONDS,
+    };
     let token = encode(
         &Header::default(),
         &claims,

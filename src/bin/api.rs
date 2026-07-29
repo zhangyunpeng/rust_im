@@ -2,9 +2,8 @@ use anyhow::Result;
 use axum::Router;
 use rust_im::config::AppConfig;
 use rust_im::db::mysql::init_mysql_pool;
-use tracing_subscriber::EnvFilter;
-// use rust_im::registry::etcd::RegistryEtcdClient;
 use rust_im::route::user as userRoute;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {

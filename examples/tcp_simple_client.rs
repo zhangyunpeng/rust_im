@@ -3,8 +3,10 @@ use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use prost::Message;
 use rust_im::connect::codec::Codec;
+use rust_im::model::user::LoginResp;
 use rust_im::pb::Message as ImMessage;
 use rust_im::pb::{HandshakeReq, Op, Packet};
+use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::{spawn, sync::mpsc, time::sleep};
 use tokio_util::codec::Framed;
@@ -12,15 +14,19 @@ use tokio_util::codec::Framed;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct ClientArgs {
-    #[arg(short = 'u', long = "login uid", default_value = "0")]
-    login_uid: i64,
-    #[arg(
-        short = 'f',
-        long = "friend uids",
-        value_delimiter = ',',
-        default_value = "0"
-    )]
-    friend_uids: Vec<i64>,
+    // #[arg(short = 'u', long = "login uid", default_value = "0")]
+    // login_uid: i64,
+    // #[arg(
+    //     short = 'f',
+    //     long = "friend uids",
+    //     value_delimiter = ',',
+    //     default_value = "0"
+    // )]
+    // friend_uids: Vec<i64>,
+    #[arg(short = 'n', long = "name", default_value = "")]
+    username: String,
+    #[arg(short = 'p', long = "password", default_value = "")]
+    password: String,
 }
 
 #[tokio::main]
@@ -28,9 +34,10 @@ async fn main() -> Result<()> {
     // 解析启动参数
     let args = ClientArgs::parse();
     println!("服务启动参数配置：{:#?}", args);
-    if args.login_uid < 0 || args.friend_uids.is_empty() {
-        return Err(anyhow::Error::msg("u|f参数错误"));
+    if args.username.is_empty() || args.password.is_empty() {
+        return Err(anyhow::Error::msg("n|p参数错误"));
     }
+    let (uid, token) = user_login(&args.username, &args.password).await?;
 
     const ADDR: &str = "127.0.0.1:8090";
 
@@ -64,9 +71,9 @@ async fn main() -> Result<()> {
                 },
                 _ = msg_interval.tick() => {
                     let msg = ImMessage {
-                        from_uid: args.login_uid,
-                        to_uid_list: args.friend_uids.clone(),
-                        content: format!("{} say: hello, {}", args.login_uid, now_ts_sec()),
+                        from_uid: uid,
+                        to_uid_list: friends(uid),
+                        content: format!("{} say: hello, {}", uid, now_ts_sec()),
                         room_id: 0,
                     };
                     let pkt = Packet {
@@ -86,8 +93,8 @@ async fn main() -> Result<()> {
 
     // 发送握手包
     let handshake_req = HandshakeReq {
-        uid: args.login_uid,
-        token: "debug_token_123".to_string(),
+        uid,
+        token: token.clone(),
         device_id: "debug_id".to_string(),
     };
     let pkt = Packet {
@@ -96,7 +103,7 @@ async fn main() -> Result<()> {
         len: 0,
     };
     tx.send(pkt).unwrap();
-    println!("✅ TCP客户端登录成功 uid={}", args.login_uid);
+    println!("✅ TCP客户端登录成功 uid={}", uid);
 
     loop {
         tokio::select! {
@@ -144,4 +151,34 @@ pub fn now_ts_sec() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs()
+}
+
+#[derive(Debug, Deserialize)]
+struct LoginRespBody {
+    code: i64,
+    msg: String,
+    data: LoginResp,
+}
+async fn user_login(username: &str, pwd: &str) -> Result<(i64, String)> {
+    let req = rust_im::model::user::LoginReq {
+        username: username.to_string(),
+        password: pwd.to_string(),
+    };
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()?;
+    let resp = client
+        .post("http://127.0.0.1:8080/user/login")
+        .json(&req)
+        .send()
+        .await?;
+    println!("resp: {:?}", &resp);
+    let data: LoginRespBody = resp.json().await?;
+    Ok((data.data.uid, data.data.token))
+}
+
+fn friends(uid: i64) -> Vec<i64> {
+    let mut fs = vec![1, 2, 3];
+    fs.retain(|val| !val.eq(&uid));
+    fs
 }

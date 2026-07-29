@@ -6,11 +6,11 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct RpcServer {
-    state: Arc<CometState>,
+    state: CometState,
 }
 
 impl RpcServer {
-    pub fn new(state: Arc<CometState>) -> Self {
+    pub fn new(state: CometState) -> Self {
         Self { state }
     }
 }
@@ -21,11 +21,13 @@ impl CometPushService for RpcServer {
         &self,
         request: Request<RemotePushReq>,
     ) -> Result<Response<RemotePushResp>, Status> {
+        tracing::info!("999 remote_push: {:?}", request);
         let body = request.into_inner();
         let uid = body.uid;
 
         let packet = Packet::decode(body.packet_bin.as_slice())
             .map_err(|e| Status::invalid_argument(format!("数据包解析失败: {e}")))?;
+        tracing::info!("888 remote_push: {:?}", &packet);
 
         if let Some(channels) = self.state.online.get(&uid) {
             for ch in channels.iter() {
@@ -46,7 +48,7 @@ impl CometPushService for RpcServer {
 }
 
 /// 启动gRPC服务
-pub async fn start_rpc_server(state: Arc<CometState>, grpc_listen: &str) -> Result<()> {
+pub async fn start_rpc_server(state: CometState, grpc_listen: &str) -> Result<()> {
     let service = RpcServer::new(state);
     tonic::transport::Server::builder()
         // 注册生成的服务

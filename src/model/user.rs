@@ -16,14 +16,14 @@ pub struct User {
 }
 
 /// 登录请求体
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct LoginReq {
     pub username: String,
     pub password: String,
 }
 
 /// 登录返回
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginResp {
     pub uid: i64,
     pub nickname: String,

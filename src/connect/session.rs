@@ -1,6 +1,7 @@
 use crate::connect::codec::Codec;
 use crate::connect::state::{CometState, ConnSender};
 use crate::pb::{HandshakeReq, HandshakeResp, Op, Packet};
+use crate::service;
 use futures::{SinkExt, StreamExt};
 use prost::Message;
 use std::time::Instant;
@@ -69,8 +70,12 @@ pub async fn handle_tcp_stream(
 }
 
 /// 鉴权模拟，生产替换为 gRPC/http 调用logic服务
-async fn verify_token(_uid: i64, _token: &str) -> bool {
-    true
+async fn verify_token(_token: &str) -> anyhow::Result<bool> {
+    // match service::verify_token(token) {
+    //     Ok(_) => Ok(true),
+    //     Err(e) => Err(e),
+    // }
+    Ok(true)
 }
 
 /// 数据公共处理函数 (TCP/WS复用)
@@ -83,7 +88,7 @@ pub async fn process_in_packet(
     match Op::try_from(pkt.op as i32) {
         Ok(Op::Handshake) => {
             let req = HandshakeReq::decode(&pkt.body[..])?;
-            let auth_ok = verify_token(req.uid, &req.token).await;
+            let auth_ok = verify_token(&req.token).await?;
             let resp = if auth_ok {
                 *uid = Some(req.uid);
                 state.add_conn(req.uid, tx.clone()).await?;

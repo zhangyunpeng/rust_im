@@ -13,11 +13,12 @@ use rust_im::connect::session::handle_tcp_stream;
 use rust_im::connect::state::CometState;
 use rust_im::connect::ws::build_ws_router;
 use rust_im::registry::etcd::RegistryEtcdClient;
+use rust_im::rpc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 1. 日志初始化
-    fmt().with_env_filter(EnvFilter::new("info")).init();
+    fmt().with_env_filter(EnvFilter::new("debug")).init();
     tracing::info!("rust-im im-comet 启动中...");
 
     // 2. 加载配置
@@ -25,8 +26,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 3. 构建全局Comet状态，心跳间隔30000ms
     let arc_app_cfg = Arc::new(app_cfg);
-    let comet_state = build_comet_state(arc_app_cfg).await?;
-
+    let comet_state = build_comet_state(arc_app_cfg.clone()).await?;
 
     // 4. 优雅停机信号监听，主动注销etcd节点
     let state_clone = comet_state.clone();
@@ -72,7 +72,16 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    // 7. WebSocket服务监听 :8091
+    // 7. rpc server
+    let state_clone = comet_state.clone();
+    tokio::spawn(async move {
+        tracing::info!("rpc server start listen 0.0.0.0:8093");
+        if let Err(e) = rpc::server::start_rpc_server(state_clone, "0.0.0.0:8093").await {
+            tracing::error!("rpc server 启动/运行异常退出: {}", e);
+        }
+    });
+
+    // 8. WebSocket服务监听 :8091
     let app: Router = build_ws_router(comet_state.clone());
     tracing::info!("WebSocket 监听 0.0.0.0:8091");
     let ws_listener = tokio::net::TcpListener::bind("0.0.0.0:8091").await?;
@@ -86,12 +95,13 @@ async fn build_comet_state(app_cfg: Arc<AppConfig>) -> anyhow::Result<CometState
         .set("bootstrap.servers", "127.0.0.1:9092")
         .create()?;
 
-
     let mut registry_client = RegistryEtcdClient::new(&app_cfg).await?;
     if app_cfg.comet.enable_distributed {
         registry_client.register().await?;
         println!("success register comet node to etcd");
     }
+
+    let rpc_client = rust_im::rpc::client::RpcClientPool::new();
 
     let cache_instance = cache::new_cache(CacheType::Redis, app_cfg.clone())?;
     Ok(CometState::new(
@@ -100,5 +110,6 @@ async fn build_comet_state(app_cfg: Arc<AppConfig>) -> anyhow::Result<CometState
         app_cfg,
         registry_client,
         cache_instance,
+        Arc::new(rpc_client),
     ))
 }

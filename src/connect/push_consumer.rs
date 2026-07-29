@@ -21,8 +21,8 @@ pub async fn start_push_consumer(state: CometState) -> anyhow::Result<()> {
             Ok(im_msg) => im_msg,
             Err(e) => {
                 // 打印解码错误 + kafka原始payload十六进制
-                println!("decode err: {:?}", e);
-                println!("kafka原始payload hex: {:02x?}", payload);
+                tracing::error!("decode err: {:?}", e);
+                tracing::error!("kafka原始payload hex: {:02x?}", payload);
                 continue;
             }
         };

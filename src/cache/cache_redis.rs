@@ -1,7 +1,11 @@
 use super::cache::CacheTrait;
+use super::cache::RouteInfo;
+use crate::registry::etcd::NodeInfo;
 use anyhow::{Result, anyhow};
 use futures::future::BoxFuture;
 use redis::AsyncCommands;
+use serde::Serialize;
+use serde::de::Unexpected::Str;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -22,7 +26,7 @@ impl CacheRedis {
     }
 
     fn user_route_key(&self, uid: i64) -> String {
-        format!("user:route:{}", uid)
+        format!("users:route:{}", uid)
     }
 
     async fn get_conn(&self) -> Result<redis::aio::MultiplexedConnection> {
@@ -43,7 +47,12 @@ impl CacheTrait for CacheRedis {
         Box::pin(async move {
             let mut conn = self.get_conn().await?;
             let key = self.user_route_key(uid);
-            let val = json!({"node_id": node_id, "grpc_addr": grpc_addr}).to_string();
+            let info = RouteInfo {
+                node_id: node_id.to_string(),
+                grpc_addr: grpc_addr.to_string(),
+                listen_addr: String::new(),
+            };
+            let val = serde_json::to_string(&info)?;
             let () = AsyncCommands::set_ex(&mut conn, key, val, self.ttl_user_route).await?;
             Ok(())
         })

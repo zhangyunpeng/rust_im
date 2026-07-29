@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use etcd_client::{Client, LeaseKeepAliveStream, LeaseKeeper, PutOptions};
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -63,7 +64,7 @@ impl RegistryEtcdClient {
     fn build_node_info(&self) -> String {
         format!(
             r#"{{"node_id":"{}","listen_addr":"{}","grpc_addr":"{}"}}"#,
-            self.node_id, "", "",
+            self.node_id, "0.0.0.0:8080", "127.0.0.1:8093",
         )
     }
 
@@ -114,4 +115,17 @@ impl RegistryEtcdClient {
         client.lease_revoke(self.lease_id).await?;
         Ok(())
     }
+}
+
+// {{"node_id":"{}","listen_addr":"{}","grpc_addr":"{}"}
+
+#[derive(Debug, Deserialize)]
+pub struct NodeData {
+    pub node_id: String,
+    pub listen_addr: String,
+    pub grpc_addr: String,
+}
+pub fn NodeInfo(data: &str) -> Result<NodeData> {
+    let data = serde_json::from_str::<NodeData>(data)?;
+    Ok(data)
 }
